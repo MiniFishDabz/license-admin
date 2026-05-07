@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>License Admin</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: Inter, Arial, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, #2563eb44, transparent 35%),
+        radial-gradient(circle at bottom right, #9333ea44, transparent 35%),
+        #080a12;
+      color: #fff;
+      padding: 30px;
+    }
+
+    .app {
+      max-width: 1200px;
+      margin: auto;
+      animation: fadeIn .5s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    h1 {
+      font-size: 34px;
+      margin-bottom: 5px;
+    }
+
+    .subtitle {
+      opacity: .65;
+      margin-bottom: 25px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 20px;
+    }
+
+    .card {
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 18px;
+      padding: 20px;
+      backdrop-filter: blur(14px);
+      box-shadow: 0 20px 60px rgba(0,0,0,.35);
+    }
+
+    label {
+      display: block;
+      margin-top: 12px;
+      margin-bottom: 6px;
+      font-size: 13px;
+      opacity: .75;
+    }
+
+    input {
+      width: 100%;
+      padding: 13px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.25);
+      color: white;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 3px #60a5fa33;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
+      border: 0;
+      border-radius: 12px;
+      color: white;
+      background: linear-gradient(135deg, #2563eb, #7c3aed);
+      cursor: pointer;
+      transition: transform .15s ease, opacity .15s ease;
+      font-weight: 700;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      opacity: .9;
+    }
+
+    .danger {
+      background: linear-gradient(135deg, #dc2626, #991b1b);
+    }
+
+    .warn {
+      background: linear-gradient(135deg, #ca8a04, #a16207);
+    }
+
+    .success {
+      background: linear-gradient(135deg, #16a34a, #15803d);
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .toolbar input {
+      flex: 1;
+    }
+
+    .key-list {
+      display: grid;
+      gap: 12px;
+      max-height: 650px;
+      overflow-y: auto;
+      padding-right: 5px;
+    }
+
+    .key-card {
+      padding: 15px;
+      border-radius: 15px;
+      background: rgba(0,0,0,.25);
+      border: 1px solid rgba(255,255,255,.1);
+      cursor: pointer;
+      transition: .15s ease;
+      animation: pop .25s ease;
+    }
+
+    @keyframes pop {
+      from { opacity: 0; transform: scale(.98); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .key-card:hover {
+      background: rgba(255,255,255,.1);
+      transform: translateY(-1px);
+    }
+
+    .key-title {
+      font-weight: 800;
+      font-size: 15px;
+      margin-bottom: 8px;
+    }
+
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .badge {
+      font-size: 12px;
+      padding: 5px 8px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.12);
+    }
+
+    .active { background: #16a34a55; }
+    .blacklisted { background: #dc262655; }
+    .unbound { background: #2563eb55; }
+    .expired { background: #ca8a0455; }
+
+    pre {
+      background: rgba(0,0,0,.35);
+      border-radius: 12px;
+      padding: 12px;
+      overflow: auto;
+      max-height: 240px;
+      font-size: 12px;
+    }
+
+    .small {
+      opacity: .65;
+      font-size: 12px;
+      margin-top: 8px;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>License Admin</h1>
+    <div class="subtitle">Manage keys, HWIDs, blacklist status, and expirations.</div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Controls</h2>
+
+        <label>Worker API URL</label>
+        <input id="apiUrl" value="https://license-api.minifishdabz.workers.dev">
+
+        <label>Admin Secret</label>
+        <input id="secret" type="password" placeholder="Your ADMIN_SECRET">
+
+        <label>Selected / New Key</label>
+        <input id="key" placeholder="XXXX-XXXX-XXXX-XXXX">
+
+        <label>Days until expiry</label>
+        <input id="days" type="number" placeholder="Leave empty for lifetime">
+
+        <button onclick="generateRandomKey()">Generate Random Key</button>
+        <button class="success" onclick="createKey()">Create Key</button>
+
+        <div class="actions">
+          <button onclick="resetHWID()">Reset HWID</button>
+          <button onclick="resetMismatches()">Reset Mismatches</button>
+          <button class="warn" onclick="unblacklistKey()">Unblacklist</button>
+          <button class="danger" onclick="blacklistKey()">Blacklist</button>
+        </div>
+
+        <button class="danger" onclick="deleteKey()">Delete Key</button>
+
+        <h3>Result</h3>
+        <pre id="result">Waiting...</pre>
+      </div>
+
+      <div class="card">
+        <h2>Existing Keys</h2>
+
+        <div class="toolbar">
+          <input id="search" placeholder="Search keys..." oninput="renderKeys()">
+          <button style="width:180px" onclick="loadKeys()">Refresh</button>
+        </div>
+
+        <div id="keyList" class="key-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let allKeys = [];
+
+    function getApiUrl() {
+      return document.getElementById("apiUrl").value.replace(/\/$/, "");
+    }
+
+    function getSecret() {
+      return document.getElementById("secret").value.trim();
+    }
+
+    function getKey() {
+      return document.getElementById("key").value.trim();
+    }
+
+    function show(data) {
+      document.getElementById("result").textContent = JSON.stringify(data, null, 2);
+    }
+
+    async function adminRequest(payload) {
+      const res = await fetch(getApiUrl() + "/admin", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + getSecret()
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      show(data);
+
+      if (data.ok) {
+        await loadKeys(false);
+      }
+
+      return data;
+    }
+
+    function generateRandomKey() {
+      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      let key = "";
+
+      for (let group = 0; group < 4; group++) {
+        if (group > 0) key += "-";
+        for (let i = 0; i < 4; i++) {
+          key += chars[Math.floor(Math.random() * chars.length)];
+        }
+      }
+
+      document.getElementById("key").value = key;
+    }
+
+    async function loadKeys(showResult = true) {
+      const res = await fetch(getApiUrl() + "/admin", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + getSecret()
+        },
+        body: JSON.stringify({ action: "list" })
+      });
+
+      const data = await res.json();
+
+      if (showResult) show(data);
+
+      if (data.ok && Array.isArray(data.keys)) {
+        allKeys = data.keys;
+        renderKeys();
+      }
+    }
+
+    function renderKeys() {
+      const list = document.getElementById("keyList");
+      const search = document.getElementById("search").value.toLowerCase();
+
+      const filtered = allKeys.filter(k =>
+        k.key.toLowerCase().includes(search) ||
+        String(k.hwid || "").toLowerCase().includes(search)
+      );
+
+      list.innerHTML = "";
+
+      if (!filtered.length) {
+        list.innerHTML = "<div class='small'>No keys found.</div>";
+        return;
+      }
+
+      for (const item of filtered) {
+        const expired = item.expiresAt && Date.now() > item.expiresAt;
+        const bound = !!item.hwid;
+
+        const div = document.createElement("div");
+        div.className = "key-card";
+        div.onclick = () => {
+          document.getElementById("key").value = item.key;
+          show(item);
+        };
+
+        div.innerHTML = `
+          <div class="key-title">${item.key}</div>
+          <div class="badges">
+            ${item.blacklisted ? "<span class='badge blacklisted'>Blacklisted</span>" : "<span class='badge active'>Active</span>"}
+            ${bound ? "<span class='badge'>Bound</span>" : "<span class='badge unbound'>Unbound</span>"}
+            ${expired ? "<span class='badge expired'>Expired</span>" : ""}
+            <span class='badge'>Mismatches: ${item.mismatchCount || 0}</span>
+          </div>
+          <div class="small">HWID: ${item.hwid || "Not bound yet"}</div>
+          <div class="small">Expires: ${item.expiresAt ? new Date(item.expiresAt).toLocaleString() : "Lifetime"}</div>
+        `;
+
+        list.appendChild(div);
+      }
+    }
+
+    function createKey() {
+      const daysRaw = document.getElementById("days").value.trim();
+
+      const payload = {
+        action: "create",
+        key: getKey()
+      };
+
+      if (daysRaw) payload.days = Number(daysRaw);
+
+      return adminRequest(payload);
+    }
+
+    function resetHWID() {
+      return adminRequest({ action: "reset_hwid", key: getKey() });
+    }
+
+    function resetMismatches() {
+      return adminRequest({ action: "reset_mismatches", key: getKey() });
+    }
+
+    function blacklistKey() {
+      return adminRequest({ action: "blacklist", key: getKey() });
+    }
+
+    function unblacklistKey() {
+      return adminRequest({ action: "unblacklist", key: getKey() });
+    }
+
+    function deleteKey() {
+      if (!confirm("Delete this key permanently?")) return;
+      return adminRequest({ action: "delete", key: getKey() });
+    }
+  </script>
+</body>
+</html>
