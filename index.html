@@ -20,14 +20,8 @@
     }
 
     .app {
-      max-width: 1200px;
+      max-width: 1250px;
       margin: auto;
-      animation: fadeIn .5s ease;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(12px); }
-      to { opacity: 1; transform: translateY(0); }
     }
 
     h1 {
@@ -42,7 +36,7 @@
 
     .grid {
       display: grid;
-      grid-template-columns: 380px 1fr;
+      grid-template-columns: 390px 1fr;
       gap: 20px;
     }
 
@@ -87,12 +81,10 @@
       color: white;
       background: linear-gradient(135deg, #2563eb, #7c3aed);
       cursor: pointer;
-      transition: transform .15s ease, opacity .15s ease;
       font-weight: 700;
     }
 
     button:hover {
-      transform: translateY(-1px);
       opacity: .9;
     }
 
@@ -124,10 +116,15 @@
       flex: 1;
     }
 
+    .toolbar button {
+      width: 180px;
+      margin-top: 0;
+    }
+
     .key-list {
       display: grid;
       gap: 12px;
-      max-height: 650px;
+      max-height: 700px;
       overflow-y: auto;
       padding-right: 5px;
     }
@@ -138,18 +135,10 @@
       background: rgba(0,0,0,.25);
       border: 1px solid rgba(255,255,255,.1);
       cursor: pointer;
-      transition: .15s ease;
-      animation: pop .25s ease;
-    }
-
-    @keyframes pop {
-      from { opacity: 0; transform: scale(.98); }
-      to { opacity: 1; transform: scale(1); }
     }
 
     .key-card:hover {
       background: rgba(255,255,255,.1);
-      transform: translateY(-1px);
     }
 
     .key-title {
@@ -162,6 +151,7 @@
       display: flex;
       flex-wrap: wrap;
       gap: 6px;
+      margin-bottom: 8px;
     }
 
     .badge {
@@ -175,20 +165,21 @@
     .blacklisted { background: #dc262655; }
     .unbound { background: #2563eb55; }
     .expired { background: #ca8a0455; }
+    .suspicious { background: #f9731655; }
 
     pre {
       background: rgba(0,0,0,.35);
       border-radius: 12px;
       padding: 12px;
       overflow: auto;
-      max-height: 240px;
+      max-height: 280px;
       font-size: 12px;
     }
 
     .small {
-      opacity: .65;
+      opacity: .7;
       font-size: 12px;
-      margin-top: 8px;
+      margin-top: 5px;
       word-break: break-all;
     }
   </style>
@@ -196,7 +187,7 @@
 <body>
   <div class="app">
     <h1>License Admin</h1>
-    <div class="subtitle">Manage keys, HWIDs, blacklist status, and expirations.</div>
+    <div class="subtitle">Manage keys, install bindings, suspicious activity, blacklists, and expirations.</div>
 
     <div class="grid">
       <div class="card">
@@ -218,8 +209,8 @@
         <button class="success" onclick="createKey()">Create Key</button>
 
         <div class="actions">
-          <button onclick="resetHWID()">Reset HWID</button>
-          <button onclick="resetMismatches()">Reset Mismatches</button>
+          <button onclick="resetInstall()">Reset Install</button>
+          <button onclick="resetSuspicious()">Reset Suspicious</button>
           <button class="warn" onclick="unblacklistKey()">Unblacklist</button>
           <button class="danger" onclick="blacklistKey()">Blacklist</button>
         </div>
@@ -234,8 +225,8 @@
         <h2>Existing Keys</h2>
 
         <div class="toolbar">
-          <input id="search" placeholder="Search keys..." oninput="renderKeys()">
-          <button style="width:180px" onclick="loadKeys()">Refresh</button>
+          <input id="search" placeholder="Search keys, install IDs, IPs, reasons..." oninput="renderKeys()">
+          <button onclick="loadKeys()">Refresh</button>
         </div>
 
         <div id="keyList" class="key-list"></div>
@@ -260,6 +251,10 @@
 
     function show(data) {
       document.getElementById("result").textContent = JSON.stringify(data, null, 2);
+    }
+
+    function fmtTime(value) {
+      return value ? new Date(value).toLocaleString() : "Never";
     }
 
     async function adminRequest(payload) {
@@ -288,6 +283,7 @@
 
       for (let group = 0; group < 4; group++) {
         if (group > 0) key += "-";
+
         for (let i = 0; i < 4; i++) {
           key += chars[Math.floor(Math.random() * chars.length)];
         }
@@ -320,10 +316,18 @@
       const list = document.getElementById("keyList");
       const search = document.getElementById("search").value.toLowerCase();
 
-      const filtered = allKeys.filter(k =>
-        k.key.toLowerCase().includes(search) ||
-        String(k.hwid || "").toLowerCase().includes(search)
-      );
+      const filtered = allKeys.filter(k => {
+        const haystack = [
+          k.key,
+          k.installId,
+          k.lastIp,
+          k.lastRejectedIp,
+          k.lastSuspiciousReason,
+          k.lastRejectedInstallId
+        ].join(" ").toLowerCase();
+
+        return haystack.includes(search);
+      });
 
       list.innerHTML = "";
 
@@ -334,10 +338,12 @@
 
       for (const item of filtered) {
         const expired = item.expiresAt && Date.now() > item.expiresAt;
-        const bound = !!item.hwid;
+        const bound = !!item.installId;
+        const suspicious = (item.suspiciousCount || 0) > 0;
 
         const div = document.createElement("div");
         div.className = "key-card";
+
         div.onclick = () => {
           document.getElementById("key").value = item.key;
           show(item);
@@ -345,14 +351,39 @@
 
         div.innerHTML = `
           <div class="key-title">${item.key}</div>
+
           <div class="badges">
-            ${item.blacklisted ? "<span class='badge blacklisted'>Blacklisted</span>" : "<span class='badge active'>Active</span>"}
-            ${bound ? "<span class='badge'>Bound</span>" : "<span class='badge unbound'>Unbound</span>"}
-            ${expired ? "<span class='badge expired'>Expired</span>" : ""}
-            <span class='badge'>Mismatches: ${item.mismatchCount || 0}</span>
+            ${item.blacklisted
+              ? "<span class='badge blacklisted'>Blacklisted</span>"
+              : "<span class='badge active'>Active</span>"
+            }
+
+            ${bound
+              ? "<span class='badge'>Bound</span>"
+              : "<span class='badge unbound'>Unbound</span>"
+            }
+
+            ${expired
+              ? "<span class='badge expired'>Expired</span>"
+              : ""
+            }
+
+            ${suspicious
+              ? `<span class='badge suspicious'>Suspicious: ${item.suspiciousCount || 0}</span>`
+              : "<span class='badge'>Clean</span>"
+            }
           </div>
-          <div class="small">HWID: ${item.hwid || "Not bound yet"}</div>
+
+          <div class="small">Install ID: ${item.installId || "Not bound yet"}</div>
+          <div class="small">Last seen: ${fmtTime(item.lastSeen)}</div>
+          <div class="small">Last IP: ${item.lastIp || "N/A"}</div>
           <div class="small">Expires: ${item.expiresAt ? new Date(item.expiresAt).toLocaleString() : "Lifetime"}</div>
+
+          <div class="small">Last suspicious: ${fmtTime(item.lastSuspiciousAt)}</div>
+          <div class="small">Reason: ${item.lastSuspiciousReason || "None"}</div>
+          <div class="small">Score: ${item.lastSuspiciousScore ?? "N/A"}</div>
+          <div class="small">Rejected install: ${item.lastRejectedInstallId || "None"}</div>
+          <div class="small">Rejected IP: ${item.lastRejectedIp || "N/A"}</div>
         `;
 
         list.appendChild(div);
@@ -372,12 +403,13 @@
       return adminRequest(payload);
     }
 
-    function resetHWID() {
-      return adminRequest({ action: "reset_hwid", key: getKey() });
+    function resetInstall() {
+      if (!confirm("Reset install binding for this key? The next user who enters it will bind it.")) return;
+      return adminRequest({ action: "reset_install", key: getKey() });
     }
 
-    function resetMismatches() {
-      return adminRequest({ action: "reset_mismatches", key: getKey() });
+    function resetSuspicious() {
+      return adminRequest({ action: "reset_suspicious", key: getKey() });
     }
 
     function blacklistKey() {
